@@ -1,0 +1,354 @@
+<html><head><base href="https://websim.ai/tic-tac-toe-bot-battle/">
+<title>Tic-Tac-Toe Bot Battle</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #f0f0f0;
+}
+.game-container {
+  display: flex;
+  background-color: white;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  margin-top: 20px;
+}
+.board-container {
+  margin-right: 20px;
+  width: 320px;
+}
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, 100px);
+  grid-gap: 5px;
+  margin-bottom: 20px;
+}
+.cell {
+  width: 100px;
+  height: 100px;
+  background-color: #e0e0e0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 40px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+.cell:hover {
+  background-color: #d0d0d0;
+}
+.status {
+  font-size: 24px;
+  margin-bottom: 10px;
+  text-align: center;
+  height: 30px;
+}
+.bot-thoughts {
+  font-style: italic;
+  color: #666;
+  margin-bottom: 10px;
+  height: 40px;
+  overflow: hidden;
+}
+#playAgainBtn {
+  font-size: 18px;
+  padding: 10px 20px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+#playAgainBtn:hover {
+  background-color: #45a049;
+}
+.prediction {
+  width: 200px;
+  padding: 10px;
+  background-color: #e0e0e0;
+  border-radius: 5px;
+}
+.prediction h3 {
+  margin-top: 0;
+}
+.prediction-bar {
+  height: 20px;
+  background-color: #ddd;
+  margin-bottom: 5px;
+}
+.prediction-fill {
+  height: 100%;
+  transition: width 0.5s ease-in-out;
+}
+.x-fill {
+  background-color: #ff6b6b;
+}
+.o-fill {
+  background-color: #4ecdc4;
+}
+.tie-fill {
+  background-color: #95a5a6;
+}
+#result {
+  font-size: 32px;
+  font-weight: bold;
+  color: #4CAF50;
+  margin-top: 20px;
+  text-align: center;
+  padding: 10px 20px;
+  background-color: #e8f5e9;
+  border: 2px solid #4CAF50;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+}
+#result.active {
+  transform: scale(1.1);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+</style>
+</head>
+<body>
+<h1>Tic-Tac-Toe Bot Battle</h1>
+<div class="game-container">
+  <div class="board-container">
+    <div class="status" id="status">Bot X's turn</div>
+    <div class="bot-thoughts" id="botThoughts"></div>
+    <div class="board" id="board">
+      <div class="cell" data-index="0"></div>
+      <div class="cell" data-index="1"></div>
+      <div class="cell" data-index="2"></div>
+      <div class="cell" data-index="3"></div>
+      <div class="cell" data-index="4"></div>
+      <div class="cell" data-index="5"></div>
+      <div class="cell" data-index="6"></div>
+      <div class="cell" data-index="7"></div>
+      <div class="cell" data-index="8"></div>
+    </div>
+    <button id="playAgainBtn" style="display: none;">Play Again</button>
+  </div>
+  <div class="prediction">
+    <h3>Prediction</h3>
+    <div>X Wins:</div>
+    <div class="prediction-bar"><div id="xPredict" class="prediction-fill x-fill" style="width: 33%;"></div></div>
+    <div>O Wins:</div>
+    <div class="prediction-bar"><div id="oPredict" class="prediction-fill o-fill" style="width: 33%;"></div></div>
+    <div>Tie:</div>
+    <div class="prediction-bar"><div id="tiePredict" class="prediction-fill tie-fill" style="width: 34%;"></div></div>
+  </div>
+</div>
+<div id="result"></div>
+
+<script>
+const board = ['', '', '', '', '', '', '', '', ''];
+let currentPlayer = 'X';
+let gameActive = true;
+
+const winningCombinations = [
+  [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+  [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+  [0, 4, 8], [2, 4, 6] // Diagonals
+];
+
+const statusDisplay = document.getElementById('status');
+const botThoughtsDisplay = document.getElementById('botThoughts');
+const cellElements = document.querySelectorAll('.cell');
+const playAgainBtn = document.getElementById('playAgainBtn');
+const xPredictElement = document.getElementById('xPredict');
+const oPredictElement = document.getElementById('oPredict');
+const tiePredictElement = document.getElementById('tiePredict');
+const resultDisplay = document.getElementById('result');
+
+function updatePrediction() {
+  const emptySpaces = board.filter(cell => cell === '').length;
+  const xCount = board.filter(cell => cell === 'X').length;
+  const oCount = board.filter(cell => cell === 'O').length;
+
+  let xPredict = 33 + Math.random() * 10;
+  let oPredict = 33 + Math.random() * 10;
+  let tiePredict = 100 - xPredict - oPredict;
+
+  if (xCount > oCount) {
+    xPredict += 5;
+    oPredict -= 5;
+  } else if (oCount > xCount) {
+    oPredict += 5;
+    xPredict -= 5;
+  }
+
+  if (emptySpaces < 4) {
+    tiePredict += 10;
+    xPredict -= 5;
+    oPredict -= 5;
+  }
+
+  xPredictElement.style.width = `${xPredict}%`;
+  oPredictElement.style.width = `${oPredict}%`;
+  tiePredictElement.style.width = `${tiePredict}%`;
+}
+
+function handleCellClick(clickedCellEvent) {
+  const clickedCell = clickedCellEvent.target;
+  const clickedCellIndex = parseInt(clickedCell.getAttribute('data-index'));
+
+  if (board[clickedCellIndex] !== '' || !gameActive) {
+    return;
+  }
+
+  updateCell(clickedCell, clickedCellIndex);
+  checkForWin();
+  if (gameActive) checkForDraw();
+  changePlayer();
+}
+
+function updateCell(cell, index) {
+  board[index] = currentPlayer;
+  cell.textContent = currentPlayer;
+  updatePrediction();
+}
+
+function changePlayer() {
+  currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+  statusDisplay.textContent = `Bot ${currentPlayer}'s turn`;
+  if (gameActive) {
+    setTimeout(botMove, 1000 + Math.random() * 1000);
+  }
+}
+
+function checkForWin() {
+  for (let i = 0; i < winningCombinations.length; i++) {
+    const [a, b, c] = winningCombinations[i];
+    if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+      gameActive = false;
+      statusDisplay.textContent = `Bot ${currentPlayer} wins!`;
+      playAgainBtn.style.display = 'block';
+      announceResult(`${currentPlayer} Won!`);
+      return;
+    }
+  }
+}
+
+function checkForDraw() {
+  if (!board.includes('')) {
+    gameActive = false;
+    statusDisplay.textContent = "It's a draw!";
+    playAgainBtn.style.display = 'block';
+    announceResult("Tie!");
+  }
+}
+
+function announceResult(result) {
+  resultDisplay.textContent = result;
+  resultDisplay.classList.add('active');
+  resultDisplay.style.animation = 'pulse 0.5s ease-in-out 3';
+  setTimeout(() => {
+    resultDisplay.classList.remove('active');
+    resultDisplay.style.animation = '';
+  }, 1500);
+}
+
+function botMove() {
+  if (!gameActive) return;
+
+  let availableMoves = board.reduce((acc, cell, index) => {
+    if (cell === '') acc.push(index);
+    return acc;
+  }, []);
+
+  let move;
+  let botThoughts = '';
+
+  // Simpler bot logic
+  const strategy = Math.random();
+
+  if (strategy < 0.4) { // 40% chance of making a random move
+    move = availableMoves[Math.floor(Math.random() * availableMoves.length)];
+  } else if (strategy < 0.7) { // 30% chance of trying to win or block
+    move = findWinningOrBlockingMove() || availableMoves[Math.floor(Math.random() * availableMoves.length)];
+  } else { // 30% chance of preferring corners or center
+    const preferredMoves = [0, 2, 4, 6, 8].filter(m => availableMoves.includes(m));
+    move = preferredMoves.length > 0 ? preferredMoves[Math.floor(Math.random() * preferredMoves.length)] : availableMoves[Math.floor(Math.random() * availableMoves.length)];
+  }
+
+  // More varied bot thoughts
+  const thoughts = [
+    "Hmm, this looks like a good spot.",
+    "I hope this move works out.",
+    "Let's try this one.",
+    "I'm not sure about this, but here goes.",
+    "This move feels right.",
+    "I wonder if this is the best choice.",
+    "Maybe I should have moved somewhere else.",
+    "I'm second-guessing myself, but I'll go with this.",
+    "This game is tougher than I thought.",
+    "I'm starting to see a pattern here.",
+    "I didn't expect the game to go this way.",
+    "I'm feeling confident about this move.",
+    "I hope my opponent doesn't see what I'm planning.",
+    "This move might surprise them.",
+    "I'm trying to think two moves ahead.",
+  ];
+  
+  botThoughts = thoughts[Math.floor(Math.random() * thoughts.length)];
+
+  botThoughtsDisplay.textContent = `Bot ${currentPlayer} thinks: ${botThoughts}`;
+  setTimeout(() => {
+    const cellToUpdate = document.querySelector(`[data-index="${move}"]`);
+    updateCell(cellToUpdate, move);
+    checkForWin();
+    if (gameActive) checkForDraw();
+    changePlayer();
+  }, 1000);
+}
+
+function findWinningOrBlockingMove() {
+  const opponent = currentPlayer === 'X' ? 'O' : 'X';
+  
+  // Check for winning move
+  for (let i = 0; i < winningCombinations.length; i++) {
+    const [a, b, c] = winningCombinations[i];
+    if (board[a] === currentPlayer && board[b] === currentPlayer && board[c] === '') return c;
+    if (board[a] === currentPlayer && board[c] === currentPlayer && board[b] === '') return b;
+    if (board[b] === currentPlayer && board[c] === currentPlayer && board[a] === '') return a;
+  }
+  
+  // Check for blocking move
+  for (let i = 0; i < winningCombinations.length; i++) {
+    const [a, b, c] = winningCombinations[i];
+    if (board[a] === opponent && board[b] === opponent && board[c] === '') return c;
+    if (board[a] === opponent && board[c] === opponent && board[b] === '') return b;
+    if (board[b] === opponent && board[c] === opponent && board[a] === '') return a;
+  }
+  
+  return null;
+}
+
+function resetGame() {
+  board.fill('');
+  gameActive = true;
+  currentPlayer = 'X';
+  statusDisplay.textContent = "Bot X's turn";
+  botThoughtsDisplay.textContent = '';
+  cellElements.forEach(cell => cell.textContent = '');
+  playAgainBtn.style.display = 'none';
+  resultDisplay.textContent = '';
+  updatePrediction();
+  setTimeout(botMove, 1000);
+}
+
+cellElements.forEach(cell => cell.addEventListener('click', handleCellClick));
+playAgainBtn.addEventListener('click', resetGame);
+
+// Start the game with Bot X's move
+setTimeout(botMove, 1000);
+</script>
+</body></html>
